@@ -477,3 +477,63 @@ into this log or vice versa.
 - The intermediate relabeled draft (rendered transcripts) was moved to
   `_TRASH ME - superseded Part 3 files/` so only one evidence PDF remains in
   the submission folder.
+
+## 2026-09-17 (Part 4 — save/load to a text file) [logged retroactively 2026-09-22]
+
+- **This entry was missing.** Part 4 was written on the evening of Sep 17 and
+  `CHANGELOG.md` was updated, but `SESSION_LOG.md` never got its matching
+  entry, against this project's own rule that both logs move together. Written
+  up after the fact from the file timestamps and the code itself.
+- Received the CCR-004 spec, filed to `00 Instructions/Part 4.pdf` and
+  `Part 4/Project 1 - Part 4.pdf`, created `Part 4/Project 1 Part 4/`.
+- Implemented v4.0 on top of v3.0: `standingText` buffer filled once by a
+  single switch, write to `student_records.txt` with `fopen`/`fprintf`,
+  read-back with `fgets`+`sscanf`, recomputation of average/highest/lowest from
+  the recovered grades, and a field-by-field verification flag.
+
+## 2026-09-22 (Part 4 — independent audit, two real bugs fixed)
+
+- Treated every claim in the Sep 17 CHANGELOG entry as UNVERIFIED and re-ran
+  everything from scratch against the spec.
+- **Verified true:** compiles clean under `-Wall -Wextra -std=c11` and with
+  `-pedantic`; the saved file is byte-identical to the spec's Example 2; the
+  read-failure path prints the exact Example 3 wording; all Part 1/2/3
+  regressions still pass; round-trip is clean on six cases with zero differing
+  fields.
+- **Found NOT true:** the CHANGELOG claimed the read-failure was "tested by
+  revoking read permission after a successful write." The mechanism works, but
+  two error paths it implied were fine were in fact broken — see below.
+- **BUG 1 (real, fixed): a failed save was reported as a success.** `fclose`
+  was unchecked. `fprintf` only fills a buffer; the data reaches disk at close,
+  so a flush failure happens after every `fprintf` has "succeeded". Reproduced
+  by pointing the data file at a device that accepts writes but always fails to
+  flush: the old build printed "Student information successfully saved", read
+  back uninitialised memory (`Highest Grade : 1500501712`), and **exited 0**.
+  Fixed by checking `fclose`; now prints a clear error and exits 1.
+- **BUG 2 (real, fixed): every `sscanf` return value was ignored.** A line that
+  was present but not numeric left the recovered variable uninitialised and the
+  program carried on with garbage. Each conversion is now checked and names the
+  offending field.
+- **Changed for spec conformance:** the write-failure message used different
+  wording from the read-failure one. The spec gives one error block for "the
+  data file cannot be opened" (Example 3), so both now print that exact text.
+- File error behaviour verified empirically for all five conditions: unwritable,
+  unreadable, flush failure, empty file, non-numeric line. All five report a
+  clear error and exit 1. No crashes, no silent success.
+- **Flagged, not fixed:** required regression test 5 ("attempt to read a missing
+  file") is unreachable by design, because the program always writes the file
+  immediately before reading it. The reachable equivalent is "cannot be opened
+  for reading", which is the same code path and the same spec wording. Recorded
+  in `Notes/Part 4.md` and to be stated in the evidence PDF assumptions rather
+  than papered over.
+- **Flagged, not fixed:** the recovered report prints `Course 1 : 95` while the
+  spec's Example 1 shows bare grade numbers. Deliberate, per Question for the
+  Customer #6, but a visible difference from the example. Branson's call.
+- Generated `student_records.txt` from a real Alice Johnson run and placed it in
+  the submission folder — the spec requires it in the ZIP this week.
+- Refreshed the `Part 4/Project 1 Part 4/main.c` snapshot; verified identical
+  to the live file.
+- Created `Notes/Part 4.md` and added it to the `SIMS Project` index.
+- **Not done, deliberately:** no ZIP, no git commit. The Desktop repo at
+  `~/Desktop/Advanced Program/Project/` is still at **v3.0** with no Part 4 —
+  left untouched, but it needs syncing before any GitHub push.

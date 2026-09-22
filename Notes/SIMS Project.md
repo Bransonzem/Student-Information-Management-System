@@ -15,3 +15,4 @@ COP 3515 Project 1 track. Separate from the unrelated weekly CCR series
 - [[Part 1]]
 - [[Part 2]]
 - [[Part 3]]
+- [[Part 4]]

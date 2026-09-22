@@ -186,3 +186,108 @@ program's real output. Submission ZIP rebuilt and re-audited from the
 extracted files.
 
 **Not yet done (user's to complete):** the Canvas upload and the git commit.
+
+## Part 4 (2026-09-17) — Save/load student record to a text file
+
+**Requirements:** Continue all Part 1–3 functionality. Save the student's ID, name,
+GPA, academic standing, and five course grades to `student_records.txt`. Immediately
+read the file back and display a "Recovered Student Record" in the same format as
+the original Student Summary. Let the employee verify the recovered data matches
+what was originally entered. Single student only. Newly permitted this week: file
+processing, character processing, type casting, formatted file I/O (`fprintf`/
+`fscanf`). Loops and functions remain out of scope.
+
+**Implementation:** [main.c](main.c) — version bumped to 4.0. Refactored the
+Academic Standing switch into a single `standingText` buffer filled once, reused
+for on-screen display, the saved file, and the verification comparison — previously
+each use had its own separate switch, and letting those three drift out of sync is
+exactly the class of bug the Part 3 GPA-rounding fix was about. File writes with
+`fopen(..., "w")` (always creates/overwrites — correct for a single-student system
+with nothing to append to). Reads use `fgets` line-by-line for every field, even
+numeric ones, since Student Name can contain spaces and mixing `fscanf`/`fgets` on
+one stream is a common source of leftover-newline bugs. Average/highest/lowest are
+recomputed from the recovered grades — the file never stores those three derived
+values, only the five raw grades — using the same duplicated (not shared-function)
+logic as the original computation, since functions are still out of scope.
+
+**Answers to the PDF's "Questions for the Customer":** filename hardcoded to
+`student_records.txt` (not configurable this week, matches the spec's own Example
+3 exactly); overwrite, not append (single student, nothing to append to); a write
+failure prints an error and exits, same pattern as a read failure; file is read
+back automatically in the same run right after saving (matches Example 1's exact
+output sequence); the recovered report exactly matches the original Student
+Summary's fields/format; no course names exist in this program, so none are saved;
+Academic Standing is saved and re-displayed as plain text, not recalculated from
+the recovered GPA; a missing/incomplete file (any expected line absent) prints a
+clear error and exits rather than attempting partial recovery; no blank lines in
+the file, to match Example 2's file contents exactly; multiple-student support and
+configurable filenames are both explicitly out of scope this week per the spec.
+
+**Tests:** Compiles clean with `-Wall -Wextra -std=c11`, zero warnings. Spec's
+Example 1 (Alice Johnson) reproduced exactly — saved file byte-for-byte matches
+Example 2's expected contents, recovered report matches the original, verification
+reports a match. All Part 2/3 regression cases re-verified (Michael Brown, Christopher
+Williams, invalid-GPA rejection, and the 1.999-boundary rounding case) — all still
+pass exactly, including in the recovered/reloaded copy. File-read failure tested by
+revoking read permission on an existing file after a successful write — produces
+the exact error wording from the spec's Example 3.
+
+**Independent re-audit (2026-09-22) — two real bugs found and fixed.** The test
+claims above were re-run from scratch rather than taken on trust. Confirmed
+true: clean compile (also with `-pedantic`), saved file byte-identical to the
+spec's Example 2, read-failure path matching Example 3 word for word, and all
+Part 1/2/3 regressions passing. Two defects were nevertheless present:
+
+1. **A failed save was reported as a success.** `fclose` was unchecked, and
+   "Student information successfully saved." printed regardless. `fprintf`
+   only fills a buffer, so a flush failure occurs after every `fprintf` has
+   already succeeded. Reproduced by pointing the data file at a device that
+   accepts writes but always fails to flush: the program claimed success, read
+   back uninitialised memory (`Highest Grade : 1500501712`), and exited 0.
+   Fixed by checking `fclose` and only claiming success on 0.
+2. **Every `sscanf` return value was ignored.** A present-but-non-numeric line
+   left the recovered variable uninitialised and parsing continued on garbage.
+   Each conversion is now checked and names the offending field.
+
+Also aligned to spec: the write-failure message now uses the same three-line
+text as the read failure, since the spec gives one error block for "the data
+file cannot be opened" (Example 3).
+
+File error behaviour verified empirically for all five conditions (unwritable,
+unreadable, flush failure, empty file, non-numeric line) — each reports a clear
+error and exits 1.
+
+**Known, flagged, not changed:** required regression test 5 ("attempt to read a
+missing file") is unreachable by design, because the program always writes the
+file immediately before reading it; the reachable equivalent is "cannot be
+opened for reading", the same code path and the same spec wording. And the
+recovered report prints `Course 1 : 95` where the spec's Example 1 shows bare
+grade numbers — deliberate per Question for the Customer #6, but a visible
+difference. Both are written up in `Notes/Part 4.md`.
+
+**`student_records.txt` generated** from a real run and placed in the submission
+folder; the spec requires it in the ZIP this week.
+
+**Evidence PDF and submission ZIP built (2026-09-22).** Branson supplied two
+screenshots (Alice Johnson, spec Example 1 — covers Tests 1-4). Claude generated
+Test 5 (read-permission-denied) plus four extra regression screenshots (Michael
+Brown, Christopher Williams, invalid-GPA rejection, the 1.999-boundary case) by
+re-running the actual compiled program against the current, audited `main.c` and
+rendering the real captured terminal output as matching-style images — verified
+byte-for-byte against a fresh compile before use, not fabricated. Assembled into
+a 14-page `Project 1 Part 4 - Test Evidence.pdf`: all 7 screenshots, saved-file
+contents, the real Bug 1/Bug 2 writeup from the 2026-09-22 re-audit (previously
+a draft of this PDF incorrectly claimed "no bugs found" — corrected before
+finalizing), the standingText refactor note, all 12 customer-question answers,
+and 4 assumptions (including the required write-up on the Test 5 interpretation
+and the Course-N-format difference flagged in `Notes/Part 4.md`). Submission ZIP
+built at `Part 4/Project 1 Part 4.zip` (`main.c` + `student_records.txt` inside
+a `Project 1 Part 4/` wrapper, matching the Part 1/3 structure). Both also saved
+to `~/Desktop/part4 SC/`.
+
+**Not yet done (user's to complete):** read the evidence PDF once before
+submitting (the customer answers are written in Branson's voice — he should own
+them), confirm the due date on Canvas (**Sep 24, 2026 per `Notes/Part 4.md`**,
+2 days out as of Sep 22), the Canvas upload itself, and the git commit/GitHub
+push (ask before pushing — the Desktop git repo is still at v3.0 with no Part 4
+at all, per standing rule).
